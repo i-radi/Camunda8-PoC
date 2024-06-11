@@ -28,7 +28,7 @@ namespace Cloudstarter.Controllers
         [HttpGet]
         public async Task<IActionResult> DeployWorkflow()
         {
-            var response = await _zeebeService.Deploy("test-process.bpmn");
+            var response = await _zeebeService.Deploy("test-throw-exception.bpmn");
             return Ok(response);
         }
 
@@ -44,7 +44,7 @@ namespace Cloudstarter.Controllers
         [HttpGet]
         public async Task<IActionResult> StartWorkflowInstance()
         {
-            var instance = await _zeebeService.CreateWorkflowInstance("test-process");
+            var instance = await _zeebeService.CreateWorkflowInstance("Process_0l9rt3b");
             return Ok(instance);
         }
     }

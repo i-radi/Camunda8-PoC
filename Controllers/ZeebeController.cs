@@ -34,9 +34,9 @@ namespace Cloudstarter.Controllers
 
         [Route("/start-workers")]
         [HttpGet]
-        public IActionResult StartWorkflow()
+        public async Task<IActionResult> StartWorkflow()
         {
-            _zeebeService.StartWorkers();
+            await _zeebeService.StartWorkers();
             return Ok("done");
         }
 

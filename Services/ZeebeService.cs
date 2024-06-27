@@ -9,6 +9,7 @@ using Zeebe.Client.Api.Responses;
 using Zeebe.Client.Api.Worker;
 using Zeebe.Client.Impl.Builder;
 using System.Text.Json;
+using System.Threading;
 
 namespace Cloudstarter.Services
 {
@@ -73,24 +74,50 @@ namespace Cloudstarter.Services
             var instance = await _client.NewCreateProcessInstanceCommand()
                 .BpmnProcessId(bpmProcessId)
                 .LatestVersion()
-                .WithResult()
                 .Send();
 
             return JsonSerializer.Serialize(instance);
         }
 
-        public void StartWorkers()
+        public async Task StartWorkers()
         {
-            CreateTestWorker();
+            await CreateTestWorker();
+            await Test1Worker();
+            await Test2Worker();
         }
 
-        public void CreateTestWorker()
+        public async Task CreateTestWorker()
         {
-            CreateWorker("test_service_task_def", async (client, job) =>
+            await CreateWorker("test_service_task_def", async (client, job) =>
             {
                 try
                 {
                     //throw new Exception();
+                    Console.WriteLine($"CreateTestWorker Started {DateTime.Now}");
+                    //Task.Delay(5000);
+                    await client.NewCompleteJobCommand(job.Key)
+                    .Variables(JsonSerializer.Serialize(new { ErrorCode = 9999, ErrorMsg = "test message" }))
+                    .Send();
+                    Console.WriteLine($"CreateTestWorker completed {DateTime.Now}");
+                }
+                catch (Exception ex)
+                {
+                    await client.NewThrowErrorCommand(job.Key)
+                    .ErrorCode("9999")
+                    .Variables(JsonSerializer.Serialize(new { ErrorCode = 9999, ErrorMsg = ex.Message }))
+                    .Send();
+                }
+            },1);
+        }
+
+        public async Task Test1Worker()
+        {
+            await CreateWorker("test1_def", async (client, job) =>
+            {
+                try
+                {
+                    //throw new Exception();
+                    //Task.Delay(5000);
                     await client.NewCompleteJobCommand(job.Key)
                     .Variables(JsonSerializer.Serialize(new { ErrorCode = 9999, ErrorMsg = "test message" }))
                     .Send();
@@ -105,17 +132,41 @@ namespace Cloudstarter.Services
             });
         }
 
-        private void CreateWorker(string jobType, JobHandler handleJob)
+        public async Task Test2Worker()
+        {
+            await CreateWorker("test2_def", async (client, job) =>
+            {
+                try
+                {
+                    //throw new Exception();
+                    //Task.Delay(5000);
+                    await client.NewCompleteJobCommand(job.Key)
+                    .Variables(JsonSerializer.Serialize(new { ErrorCode = 9999, ErrorMsg = "test message" }))
+                    .Send();
+                }
+                catch (Exception ex)
+                {
+                    await client.NewThrowErrorCommand(job.Key)
+                    .ErrorCode("9999")
+                    .Variables(JsonSerializer.Serialize(new { ErrorCode = 9999, ErrorMsg = ex.Message }))
+                    .Send();
+                }
+            });
+        }
+
+        private Task CreateWorker(string jobType, AsyncJobHandler handleJob, int maxJobsActive = 5)
         {
             _client.NewWorker()
                     .JobType(jobType)
                     .Handler(handleJob)
-                    .MaxJobsActive(5)
+                    .MaxJobsActive(maxJobsActive)
                     .Name(jobType)
-                    .PollInterval(TimeSpan.FromSeconds(50))
-                    .PollingTimeout(TimeSpan.FromSeconds(50))
-                    .Timeout(TimeSpan.FromSeconds(10))
+                    .PollInterval(TimeSpan.FromSeconds(60))
+                    .PollingTimeout(TimeSpan.FromSeconds(60))
+                    .Timeout(TimeSpan.FromSeconds(60))
                     .Open();
+
+            return Task.CompletedTask;
         }
     }
 }
